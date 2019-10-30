@@ -18,6 +18,7 @@ Rails.application.routes.draw do
           scope '/:chat_number/messages' do
             get '/', to: 'message#index'
             post '/', to: 'message#create'
+            get '/search/:word', to: 'message#search'
             get ':message_number', to: 'message#show'
             put ':message_number', to: 'message#update'
             delete ':message_number', to: 'message#delete'

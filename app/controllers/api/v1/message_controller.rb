@@ -135,6 +135,19 @@ module Api
           head(204)
         end
       end
+
+      def search
+        @messages = Message.search params[:word]
+        @messages_without_ids = []
+        @messages.each do |message|
+          @messages_without_ids.push(
+              'chat_number' => message.chat_number,
+              'message_number' => message.number,
+              'body' => message.body
+          )
+        end
+        render json: {status: 'success', data: @messages_without_ids}
+      end
     end
   end
 end
