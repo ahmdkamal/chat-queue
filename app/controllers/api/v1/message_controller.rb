@@ -10,7 +10,7 @@ module Api
       before_action :validate_params, only: [:create, :update]
 
       def index
-        @messages = Message.where(chat_number: params[:chat_number]).order(created_at: :desc).all
+        @messages = @chat.messages.order(created_at: :desc).all
         @messages_without_ids = []
         @messages.each do |message|
           @messages_without_ids.push(
@@ -23,15 +23,22 @@ module Api
       end
 
       def create
-        @message = Message.create(chat_number: params[:chat_number], body: params[:body])
-        @message.update(message_number: @message.id)
-        @message = {'message_number' => @message.message_number, 'chat_number' => @message.chat_number, 'body' => @message.body}
+        @message_number = $redis.get('message_number')
+        if @message_number.nil?
+          @message_number = Message.last.id + 1
+          $redis.set('message_number', @message_number)
+        else
+          @message_number = @message_number.to_i + 1
+          $redis.set('message_number', @message_number)
+        end
+        ::MessageWorker..perform_in(10.seconds, params[:body], @chat.chat_number, @message_number)
+        @message = {'message_number' => @message_number, 'chat_number' => @chat.chat_number, 'body' => params[:body]}
         render json: {status: 'success', data: @message}
       end
 
       def show
-          @message = {'message_number' => @message.message_number, 'chat_number' => @message.chat_number, 'body' => @message.body}
-          render json: {status: 'success', data: @message}
+        @message = {'message_number' => @message.message_number, 'chat_number' => @message.chat_number, 'body' => @message.body}
+        render json: {status: 'success', data: @message}
       end
 
       def update
@@ -41,6 +48,7 @@ module Api
       end
 
       def delete
+        ::UpdateChatWorker.perform_in(1.hour, @chat.id, delete = true)
         @message.delete
         head(204)
       end
@@ -66,13 +74,13 @@ module Api
       end
 
       def validate_chat_existance
-        @chat = Chat.where(chat_number: params[:chat_number]).first
+        @chat = @application.chats.where(chat_number: params[:chat_number]).first
         render json: {status: 'failed', errors: 'chat not found'}, status: 404 unless @chat
       end
 
       def validate_message_existance
-        @message = Message.find_by(message_number: params[:message_number])
-        render json: { message: 'not found' }, status: 404 unless @message
+        @message = @chat.messages.find_by(message_number: params[:message_number])
+        render json: {status: 'failed', errors: 'message not found'}, status: 404 unless @message
       end
 
       def validate_params

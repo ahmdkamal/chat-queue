@@ -41,6 +41,7 @@ module Api
       end
 
       private
+
       def validate_params
         render json: {status: 'failed', errors: 'name is required'}, status: 400 if params.permit(:name).blank?
       end

@@ -10,7 +10,7 @@ development:
     adapter: mysql2
     encoding: utf8
     database: instabug
-    pool: 5
+    pool: 30
     username: root
     password: mypassword
     host: db
