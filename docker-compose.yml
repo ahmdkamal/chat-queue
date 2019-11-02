@@ -14,3 +14,16 @@ services:
       - "9292:9292"
     links:
       - db
+  redis:
+    image: 'redis:4.0-alpine'
+    command: redis-server
+    volumes:
+      - '.:/data/redis'
+  sidekiq:
+    depends_on:
+      - 'db'
+      - 'redis'
+    build: .
+    command: sidekiq -C config/sidekiq.yml.erb
+    volumes:
+      - '.:/app'
