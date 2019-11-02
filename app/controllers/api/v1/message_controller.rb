@@ -3,23 +3,19 @@ module Api
   module V1
     ## Message Class
     class MessageController < ApplicationController
+
+      before_action :validate_application_existance
+      before_action :validate_chat_existance
+      before_action :validate_message_existance, only: [:show, :update, :delete]
+      before_action :validate_params, only: [:create, :update]
+
       def index
-        @application = Application.where(token: params[:application_token]).first
-        if @application.nil?
-          render json: {status: 'failed', data: 'no such application'}, status: 400
-          return
-        end
-        @chat = Chat.where(number: params[:chat_number], token: params[:application_token]).first
-        if @chat.nil?
-          render json: {status: 'failed', data: 'no such chat'}, status: 400
-          return
-        end
-        @messages = Message.where(chat_number: @chat.number).order(created_at: :desc).all
+        @messages = Message.where(chat_number: params[:chat_number]).order(created_at: :desc).all
         @messages_without_ids = []
         @messages.each do |message|
           @messages_without_ids.push(
               'chat_number' => message.chat_number,
-              'message_number' => message.number,
+              'message_number' => message.message_number,
               'body' => message.body
           )
         end
@@ -27,113 +23,26 @@ module Api
       end
 
       def create
-        if params.permit(:body).blank?
-          render json: {status: 'failed', errors: 'body is required'}, status: 400
-          return
-        end
-        if params.permit(:message_number).blank?
-          render json: {status: 'failed', errors: 'message_number is required'}, status: 400
-          return
-        end
-        @application = Application.where(token: params[:application_token]).first
-        if @application.nil?
-          render json: {status: 'failed', data: 'no such application'}, status: 400
-          return
-        end
-        @chat = Chat.where(number: params[:chat_number], token: params[:application_token]).first
-        if @chat.nil?
-          render json: {status: 'failed', data: 'no such chat'}, status: 400
-          return
-        end
-        if Message.where(number: params[:message_number].to_i).blank? == false
-          render json: {status: 'failed', errors: 'message already exist'}, status: 400
-          return
-        end
-        if params[:message_number].to_i < 1
-          render json: {status: 'failed', errors: 'message number should be >= 1'}, status: 400
-          return
-        end
-        @message = Message.create(chat_number: params[:chat_number].to_i,
-                                  number: params[:message_number].to_i, body: params[:body])
-        @message = {'message_number' => @message.number, 'chat_number' => @message.chat_number, 'body' => @message.body}
+        @message = Message.create(chat_number: params[:chat_number], body: params[:body])
+        @message.update(message_number: @message.id)
+        @message = {'message_number' => @message.message_number, 'chat_number' => @message.chat_number, 'body' => @message.body}
         render json: {status: 'success', data: @message}
       end
 
       def show
-        @application = Application.where(token: params[:application_token]).first
-        if @application.nil?
-          render json: {status: 'failed', data: 'no such application'}, status: 400
-          return
-        end
-        @chat = Chat.where(number: params[:chat_number], token: params[:application_token]).first
-        if @chat.nil?
-          render json: {status: 'failed', data: 'no such chat'}, status: 400
-          return
-        end
-        if params[:message_number].to_i < 1
-          render json: {status: 'failed', errors: 'message number should be >= 1'}, status: 400
-          return
-        end
-        @message = Message.where(chat_number: params[:chat_number].to_i, number: params[:message_number].to_i).first
-        if @message.blank?
-          render json: {status: 'failed', errors: 'no such message'}, status: 400
-        else
-          @message = {'message_number' => @message.number, 'chat_number' => @message.chat_number, 'body' => @message.body}
+          @message = {'message_number' => @message.message_number, 'chat_number' => @message.chat_number, 'body' => @message.body}
           render json: {status: 'success', data: @message}
-        end
       end
 
-
       def update
-        if params.permit(:body).blank?
-          render json: {status: 'failed', errors: 'body is required'}, status: 400
-          return
-        end
-        @application = Application.where(token: params[:application_token]).first
-        if @application.nil?
-          render json: {status: 'failed', data: 'no such application'}, status: 400
-          return
-        end
-        @chat = Chat.where(number: params[:chat_number], token: params[:application_token]).first
-        if @chat.nil?
-          render json: {status: 'failed', data: 'no such chat'}, status: 400
-          return
-        end
-        if params[:message_number].to_i < 1
-          render json: {status: 'failed', errors: 'message number should be >= 1'}, status: 400
-          return
-        end
-        @message = Message.where(chat_number: params[:chat_number].to_i, number: params[:message_number].to_i).first
-        if @message.blank?
-          render json: {status: 'failed', errors: 'no such message'}, status: 400
-        end
-        @message.update(body: params[:body])
-        @message = {'message_number' => @message.number, 'chat_number' => @message.chat_number, 'body' => @message.body}
+        @message.update(params.permit(:body))
+        @message = {'message_number' => @message.message_number, 'chat_number' => @message.chat_number, 'body' => @message.body}
         render json: {status: 'success', data: @message}
       end
 
       def delete
-        @application = Application.where(token: params[:application_token]).first
-        if @application.nil?
-          render json: {status: 'failed', data: 'no such application'}, status: 400
-          return
-        end
-        @chat = Chat.where(number: params[:chat_number], token: params[:application_token]).first
-        if @chat.nil?
-          render json: {status: 'failed', data: 'no such chat'}, status: 400
-          return
-        end
-        if params[:message_number].to_i < 1
-          render json: {status: 'failed', errors: 'message number should be >= 1'}, status: 400
-          return
-        end
-        @message = Message.where(chat_number: params[:chat_number].to_i, number: params[:message_number].to_i).first
-        if @message.blank?
-          render json: {status: 'failed', errors: 'no such message'}, status: 400
-        else
-          @message.delete
-          head(204)
-        end
+        @message.delete
+        head(204)
       end
 
       def search
@@ -142,12 +51,34 @@ module Api
         @messages.each do |message|
           @messages_without_ids.push(
               'chat_number' => message.chat_number,
-              'message_number' => message.number,
+              'message_number' => message.message_number,
               'body' => message.body
           )
         end
         render json: {status: 'success', data: @messages_without_ids}
       end
+
+      private
+
+      def validate_application_existance
+        @application = Application.find_by(application_token: params[:application_token])
+        render json: {status: 'failed', errors: 'application not found'}, status: 404 unless @application
+      end
+
+      def validate_chat_existance
+        @chat = Chat.where(chat_number: params[:chat_number]).first
+        render json: {status: 'failed', errors: 'chat not found'}, status: 404 unless @chat
+      end
+
+      def validate_message_existance
+        @message = Message.find_by(message_number: params[:message_number])
+        render json: { message: 'not found' }, status: 404 unless @message
+      end
+
+      def validate_params
+        render json: {status: 'failed', errors: 'body is required'}, status: 400 if params.permit(:body).blank?
+      end
+
     end
   end
 end

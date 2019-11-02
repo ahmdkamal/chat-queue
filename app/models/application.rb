@@ -1,6 +1,6 @@
 class Application < ApplicationRecord
   validates :name, presence: true
-  validates :token, presence: true
+  validates :application_token, presence: true
 
-  has_many :chats, :foreign_key => :token
+  has_many :chats, :foreign_key => :application_token
 end
